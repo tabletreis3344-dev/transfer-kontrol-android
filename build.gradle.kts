@@ -1,16 +1,76 @@
-plugins {
-    id("com.android.application")
-}
 
-android {
-    namespace = "com.transferkontrol.app"
-    compileSdk = 35
+name: Transfer Kontrol APK
 
-    defaultConfig {
-        applicationId = "com.transferkontrol.app"
-        minSdk = 23
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
-    }
-}
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Android project folders
+        run: |
+          mkdir -p app/src/main/java/com/transferkontrol/app
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/assets
+          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          cp MainActivity.java app/src/main/java/com/transferkontrol/app/MainActivity.java
+          cp index.html app/src/main/assets/index.html
+          if [ -f styles.xml ]; then
+            cp styles.xml app/src/main/res/values/styles.xml
+          elif [ -f stiller.xml ]; then
+            cp stiller.xml app/src/main/res/values/styles.xml
+          else
+            echo '<resources><style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar"/></resources>' > app/src/main/res/values/styles.xml
+          fi
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+          android {
+              namespace = "com.transferkontrol.app"
+              compileSdk = 35
+              defaultConfig {
+                  applicationId = "com.transferkontrol.app"
+                  minSdk = 23
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: transfer-kontrol-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
