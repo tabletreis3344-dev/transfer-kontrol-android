@@ -26,8 +26,10 @@ jobs:
           gradle-version: '8.9'
 
       - name: Android SDK kur
-        uses: android-actions/setup-android@v3
-
+  uses: android-actions/setup-android@v3
+  with:
+    cmdline-tools-version: 12266719
+    
       - name: Android araclarini kur
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
