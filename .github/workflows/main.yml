@@ -29,7 +29,7 @@ jobs:
         with:
           cmdline-tools-version: '12266719'
 
-            - name: Install Android packages
+      - name: Accept Android licenses (Android lisanslarını kabul et)
         run: yes | sdkmanager --licenses
 
       - name: Build APK
