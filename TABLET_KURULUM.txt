@@ -1,0 +1,17 @@
+TABLETTEN APK OLUŞTURMA
+
+Bu ZIP henüz APK değildir; GitHub Actions kullanarak APK'yı bulutta üretmek için hazır Android projesidir.
+
+1. GitHub.com'da ücretsiz hesap aç veya giriş yap.
+2. Yeni bir repository oluştur (ör. transfer-kontrol); public seçmek kurulumu kolaylaştırır.
+3. Bu ZIP'i aç ve içindeki dosyaları repository'ye yükle. .github klasörünü de yüklemeyi unutma.
+4. Repository'de Actions sekmesine gir.
+5. "Build Android APK" iş akışını seç ve "Run workflow" düğmesine bas.
+6. İşlem bitince tamamlanan çalışmayı aç; Artifacts bölümündeki "transfer-kontrol-apk" dosyasını indir.
+7. İndirilen artifact ZIP'ini aç; içindeki app-debug.apk dosyasına dokun.
+8. Android izin isterse yalnızca bu dosyayı indirdiğin uygulamaya "Bilinmeyen uygulamaları yükle" izni ver ve APK'yı kur.
+
+NOTLAR:
+- Bu proje bir APK değil, APK üretmeye hazır kaynak projedir.
+- Uygulama verileri cihazda WebView yerel depolamasında tutulur. Uygulamayı kaldırmak/verileri temizlemek kayıtları silebilir.
+- Bu uygulama bankaya bağlanmaz; transferin gerçekten yapıldığını doğrulamaz.

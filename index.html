@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#123b35">
+<title>Transfer Kontrol</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#182522;background:#f3f6f4}
+*{box-sizing:border-box}body{margin:0}header{background:#123b35;color:white;padding:22px 16px 20px}
+.wrap{max-width:1000px;margin:auto;padding:16px}h1{font-size:24px;margin:0 0 6px}header p{margin:0;color:#d8e9e4;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.stat{background:#ffffff18;border:1px solid #ffffff2b;border-radius:12px;padding:10px}.stat small{display:block;color:#d8e9e4}.stat b{font-size:21px}
+.stat.clickable{cursor:pointer;user-select:none}.stat.clickable:focus{outline:2px solid #fff;outline-offset:2px}.stat.active{background:#ffffff35;border-color:#ffffffaa}
+.panel{background:white;border:1px solid #dce5e0;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #142f2410}
+h2{font-size:18px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;font-size:13px;font-weight:650;margin-bottom:5px}input{width:100%;border:1px solid #cbd8d1;border-radius:9px;padding:11px;font:inherit;background:white;color:#182522}
+input:focus{outline:2px solid #5c9d86;border-color:transparent}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+button,.filebtn{border:0;border-radius:9px;padding:10px 13px;font:inherit;font-weight:650;cursor:pointer;background:#17634f;color:white}
+button.secondary,.filebtn.secondary{background:#e8efeb;color:#21483e}button.danger{background:#a62d2d;color:white}
+.notice{padding:12px;border-radius:10px;background:#fff7df;border:1px solid #eedba0;margin-bottom:12px;font-size:14px}
+.alert{padding:12px;border-radius:10px;margin:10px 0;background:#fff0ee;border:1px solid #e8b4ad}
+.alert.ok{background:#eaf7ef;border-color:#b7ddc3}.alert.warn{background:#fff7df;border-color:#eedba0}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar input{flex:1;min-width:180px}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:680px}th,td{text-align:left;padding:10px 9px;border-bottom:1px solid #e5ebe7;font-size:13px}th{background:#f5f8f6;color:#4a5e55}
+.pill{display:inline-block;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:700;white-space:nowrap}.green{background:#dff4e6;color:#21623b}.yellow{background:#fff0bd;color:#74540b}.red{background:#ffe0dc;color:#8d2923}
+.muted{color:#63736b;font-size:13px}.empty{text-align:center;padding:28px;color:#63736b}
+footer{padding:8px 0 26px;color:#617169;font-size:12px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:8px}.stat b{font-size:18px}.wrap{padding:12px}header{padding:18px 12px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>Transfer Kontrol</h1><p>Günlük para transferlerini kaydet ve olası tekrarları fark et.</p>
+<div class="stats">
+<div class="stat"><small>Bugünkü kayıt</small><b id="count">0</b></div>
+<div class="stat"><small>Toplam tutar</small><b id="total">0 TL</b></div>
+<div class="stat clickable" id="flaggedCard" role="button" tabindex="0" aria-pressed="false" title="Sadece incelenecek kayıtları göster"><small>İncelenecek · tıkla</small><b id="flagged">0</b></div>
+</div>
+</div></header>
+<main class="wrap">
+<div class="notice">Kayıtlar bu cihazın tarayıcısında saklanır. Bu uygulama bankaya bağlanmaz; uyarılar şüphe belirtir, kesin mükerrerlik kanıtı değildir.</div>
+<section class="panel">
+<h2>Yeni transfer kaydı</h2>
+<form id="entryForm">
+<div class="grid">
+<div><label for="name">İsim soyisim / açıklama *</label><input id="name" required maxlength="120" placeholder="Örn. Hasan Ali Konya"></div>
+<div><label for="amount">Tutar (TL) *</label><input id="amount" type="number" required min="0.01" step="0.01" placeholder="2500"></div>
+<div><label for="time">Saat (manuel giriş)</label><input id="time" type="text" inputmode="numeric" maxlength="10" placeholder="Örn. 20:32 veya 2032"></div>
+<div><label for="bank">Banka adı *</label><input id="bank" required maxlength="100" placeholder="Örn. Ziraat Bankası"></div>
+<div><label for="ref">İşlem numarası (varsa)</label><input id="ref" maxlength="120" placeholder="Dekonttaki işlem no"></div>
+</div>
+<div class="actions"><button type="submit">Kaydı kontrol et ve ekle</button><button type="button" class="secondary" id="clearForm">Alanları temizle</button></div>
+</form>
+<div id="feedback" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h2 id="recordsTitle">Kayıtlar</h2>
+<div class="toolbar"><input id="search" placeholder="İsim, tutar veya işlem no ara…"><button class="secondary" id="export">CSV dışa aktar</button><label class="filebtn secondary" for="importFile">CSV içe aktar</label><input id="importFile" type="file" accept=".csv,text/csv" hidden></div>
+<div class="tablewrap"><table><thead><tr><th>#</th><th>İsim</th><th>Tutar</th><th>Saat</th><th>Banka</th><th>Kontrol sonucu</th><th>İşlem no</th><th></th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty">Henüz kayıt yok. İlk transferini yukarıdan ekleyebilirsin.</div></div>
+<div class="actions"><button class="danger" id="clearAll">Tüm kayıtları sil</button></div>
+</section>
+<footer>Gizlilik: Bilgiler bu tarayıcıda yerel olarak saklanır. Ortak cihaz kullanıyorsan kayıtları dışa aktar ve işin bitince sil. Gerçek banka bakiyesi veya para girişi doğrulanmaz.</footer>
+</main>
+<script>
+const KEY='transfer-kontrol-v1';
+let records=[];
+let flaggedOnly=false;
+let pendingRecord=null;
+try{records=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(records))records=[]}catch{records=[]}
+const $=id=>document.getElementById(id);
+const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:2}).format(Number(n)||0);
+const norm=s=>(s||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+function similarity(a,b){const A=norm(a),B=norm(b);if(!A||!B)return 0;if(A===B)return 1;const x=new Set(A.split(' ')),y=new Set(B.split(' '));const inter=[...x].filter(t=>y.has(t)).length;return inter/Math.max(x.size,y.size)}
+function assess(rec, ignoreId=null){
+ const others=records.filter(r=>r.id!==ignoreId);
+ if(rec.ref&&others.some(r=>r.ref&&norm(r.ref)===norm(rec.ref)))return {kind:'red',label:'İşlem no eşleşti',detail:'Aynı işlem numarası daha önce kayıtlı.'};
+ const exact=others.find(r=>norm(r.name)===norm(rec.name)&&Number(r.amount)===Number(rec.amount)&&norm(r.bank)===norm(rec.bank));
+ if(exact)return {kind:'red',label:'Tekrar şüphesi',detail:`Aynı isim, tutar ve banka daha önce kayıtlı: ${exact.name}, ${money(exact.amount)}, ${exact.bank}, ${exact.time||'saat yok'}.`};
+ const sameNameBank=others.find(r=>norm(r.name)===norm(rec.name)&&norm(r.bank)===norm(rec.bank));
+ if(sameNameBank)return {kind:'yellow',label:'İsim ve banka aynı',detail:`Önceki tutar: ${money(sameNameBank.amount)}; banka: ${sameNameBank.bank} (${sameNameBank.time||'saat yok'}). Tutar farklıysa manuel kontrol et.`};
+ const sameName=others.find(r=>norm(r.name)===norm(rec.name));
+ if(sameName)return {kind:'yellow',label:'İsim aynı, banka/tutar farklı',detail:`Önceki kayıt: ${money(sameName.amount)}, ${sameName.bank||'banka belirtilmemiş'} (${sameName.time||'saat yok'}).`};
+ const near=others.find(r=>similarity(r.name,rec.name)>=0.5);
+ if(near)return {kind:'yellow',label:'İsim benzerliği',detail:`Benzer kayıt: ${near.name}, ${money(near.amount)} (${near.time||'saat yok'}).`};
+ const sameAmount=others.find(r=>Number(r.amount)===Number(rec.amount));
+ if(sameAmount)return {kind:'yellow',label:'Tutar aynı',detail:`Başka bir kayıtla tutar aynı: ${sameAmount.name}. Tek başına tekrar kanıtı değildir.`};
+ return {kind:'green',label:'Belirgin eşleşme yok',detail:'Önceki kayıtlarda belirgin eşleşme bulunmadı.'};
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(records))}
+function render(){
+ const q=norm($('search').value);const visible=records.filter(r=>(!flaggedOnly||r.status!=='green')&&(!q||norm([r.name,r.amount,r.bank,r.ref,r.time].join(' ')).includes(q)));
+ $('count').textContent=records.length;
+ $('total').textContent=money(records.reduce((s,r)=>s+Number(r.amount||0),0));
+ $('flagged').textContent=records.filter(r=>r.status!=='green').length;
+ $('flaggedCard').classList.toggle('active',flaggedOnly);
+ $('flaggedCard').setAttribute('aria-pressed',String(flaggedOnly));
+ $('recordsTitle').textContent=flaggedOnly?'İncelenecek kayıtlar':'Kayıtlar';
+ $('rows').innerHTML='';
+ $('empty').style.display=visible.length?'none':'block';
+ visible.slice().reverse().forEach((r,i)=>{
+ const tr=document.createElement('tr');
+ const cells=[records.length-i,r.name,money(r.amount),r.time||'—'];
+ cells.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+ const bankCell=document.createElement('td');bankCell.textContent=r.bank||'—';tr.appendChild(bankCell);
+ const st=document.createElement('td');const pill=document.createElement('span');pill.className='pill '+r.status;pill.textContent=r.label;st.appendChild(pill);if(r.detail){const d=document.createElement('div');d.className='muted';d.textContent=r.detail;st.appendChild(d)}tr.appendChild(st);
+ const ref=document.createElement('td');ref.textContent=r.ref||'—';tr.appendChild(ref);
+ const action=document.createElement('td');const del=document.createElement('button');del.className='secondary';del.textContent='Sil';del.onclick=()=>{if(confirm('Bu kaydı silmek istiyor musun?')){records=records.filter(x=>x.id!==r.id);save();render()}};action.appendChild(del);tr.appendChild(action);$('rows').appendChild(tr);
+ });
+}
+function commitRecord(rec, result, manuallyApproved=false){
+ rec.status=result.kind;rec.label=manuallyApproved?'Manuel onaylandı':result.label;
+ rec.detail=manuallyApproved?'Benzer kayıt uyarısı gösterildi; kullanıcı yine de kaydetmeyi onayladı. '+result.detail:result.detail;
+ records.push(rec);save();render();
+ const fb=$('feedback');fb.className='alert '+(result.kind==='green'?'ok':result.kind==='yellow'?'warn':'');
+ fb.textContent=(manuallyApproved?'Kullanıcı onayıyla kaydedildi. ':result.label+'. ')+result.detail;
+ pendingRecord=null;$('entryForm').reset();$('name').focus();
+}
+function showApprovalPrompt(rec, result, match){
+ const fb=$('feedback');fb.className='alert';
+ fb.replaceChildren();
+ const msg=document.createElement('div');
+ msg.textContent='⚠️ OLASI MÜKERRER İŞLEM — Kayıt otomatik olarak eklenmedi. '+`Önceki kayıt: ${match.name}, ${money(match.amount)}, ${match.bank}, ${match.time||'saat yok'}. `+'Bu işlemi yine de kaydetmek istiyor musun?';
+ fb.appendChild(msg);
+ const actions=document.createElement('div');actions.className='actions';
+ const approve=document.createElement('button');approve.type='button';approve.textContent='Onayla ve yine de kaydet';
+ approve.onclick=()=>{commitRecord(rec,result,true);};
+ const cancel=document.createElement('button');cancel.type='button';cancel.className='secondary';cancel.textContent='İptal et';
+ cancel.onclick=()=>{pendingRecord=null;fb.className='alert ok';fb.textContent='İşlem iptal edildi; yeni kayıt eklenmedi.';};
+ actions.append(approve,cancel);fb.appendChild(actions);
+ pendingRecord=rec;
+}
+$('entryForm').addEventListener('submit',e=>{
+ e.preventDefault();
+ const rec={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:$('name').value.trim(),amount:Number($('amount').value),time:$('time').value.trim(),bank:$('bank').value.trim(),ref:$('ref').value.trim(),created:new Date().toISOString()};
+ if(!rec.name||!rec.bank||!Number.isFinite(rec.amount)||rec.amount<=0)return;
+ const result=assess(rec);
+ const exactMatch=records.find(r=>norm(r.name)===norm(rec.name)&&Number(r.amount)===Number(rec.amount)&&norm(r.bank)===norm(rec.bank)&&norm(r.time)===norm(rec.time));
+ const refMatch=rec.ref?records.find(r=>r.ref&&norm(r.ref)===norm(rec.ref)):null;
+ if(exactMatch||refMatch){
+   showApprovalPrompt(rec,result,exactMatch||refMatch);
+   return;
+ }
+ commitRecord(rec,result,false);
+});
+$('clearForm').onclick=()=>{$('entryForm').reset();$('feedback').textContent=''};
+$('search').addEventListener('input',render);
+$('clearAll').onclick=()=>{if(confirm('Tüm kayıtlar kalıcı olarak silinsin mi? Bu işlem geri alınamaz.')){records=[];save();render();$('feedback').textContent=''}};
+function csvEscape(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
+$('export').onclick=()=>{
+ const headers=['İsim','Tutar_TL','Saat','Banka','İşlem_No','Kontrol_Sonucu','Açıklama','Oluşturulma'];
+ const lines=[headers,...records.map(r=>[r.name,r.amount,r.time,r.bank,r.ref,r.label,r.detail,r.created])].map(row=>row.map(csvEscape).join(';'));
+ const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='transfer-kayitlari.csv';a.click();URL.revokeObjectURL(a.href);
+};
+$('importFile').addEventListener('change',async e=>{
+ const file=e.target.files[0];if(!file)return;
+ const text=await file.text();const lines=text.replace(/^\ufeff/,'').split(/\r?\n/).filter(Boolean);
+ if(lines.length<2){alert('CSV dosyasında kayıt bulunamadı.');return}
+ // Import exported CSV; basic quoted semicolon parser.
+ function parse(line){let out=[],cur='',quoted=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'&&line[i+1]==='"'&&quoted){cur+='"';i++}else if(c==='"')quoted=!quoted;else if(c===';'&&!quoted){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
+ const imported=lines.slice(1).map(line=>parse(line)).filter(a=>a.length>=2&&a[0].trim()&&Number(a[1])>0).map(a=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),name:a[0],amount:Number(a[1]),time:a[2]||'',bank:a[3]||'',ref:a[4]||'',label:'İçe aktarıldı',status:'yellow',detail:'İçe aktarılan kayıt; eşleşmeleri yeniden kontrol et.',created:new Date().toISOString()}));
+ if(imported.length&&confirm(imported.length+' kayıt eklensin mi? Mevcut kayıtlar korunur.')){records.push(...imported);save();render()}
+ e.target.value='';
+});
+function toggleFlagged(){flaggedOnly=!flaggedOnly;render();}
+$('flaggedCard').addEventListener('click',toggleFlagged);
+$('flaggedCard').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleFlagged()}});
+render();
+</script>
+</body></html>
