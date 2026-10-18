@@ -1,3 +1,4 @@
+
 name: Transfer Kontrol APK
 
 on:
@@ -9,9 +10,64 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/transferkontrol/app
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/assets
+
+          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          cp MainActivity.java app/src/main/java/com/transferkontrol/app/MainActivity.java
+          cp index.html app/src/main/assets/index.html
+
+          if [ -f styles.xml ]; then
+            cp styles.xml app/src/main/res/values/styles.xml
+          elif [ -f stiller.xml ]; then
+            cp stiller.xml app/src/main/res/values/styles.xml
+          else
+            echo '<resources><style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar"/></resources>' > app/src/main/res/values/styles.xml
+          fi
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "TransferKontrol"
+          include(":app")
+          EOF
+
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+          android {
+              namespace = "com.transferkontrol.app"
+              compileSdk = 35
+              defaultConfig {
+                  applicationId = "com.transferkontrol.app"
+                  minSdk = 23
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -27,8 +83,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Accept Android licenses (Android lisanslarını kabul et)
-        run: yes | sdkmanager --licenses
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build APK
         run: gradle --no-daemon assembleDebug
